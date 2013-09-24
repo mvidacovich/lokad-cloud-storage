@@ -12,6 +12,7 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.WindowsAzure.Storage.Queue;
+using Microsoft.WindowsAzure.Storage.RetryPolicies;
 using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Lokad.Cloud.Storage
@@ -187,25 +188,22 @@ namespace Lokad.Cloud.Storage
 
         CloudBlobClient BlobClient()
         {
-            var policies = new Azure.RetryPolicies(Observer);
             var blobClient = _storageAccount.CreateCloudBlobClient();
-            blobClient.RetryPolicy = policies.ForAzureStorageClient();
+            blobClient.RetryPolicy = new NoRetry();
             return blobClient;
         }
 
         CloudTableClient TableClient()
         {
-            var policies = new Azure.RetryPolicies(Observer);
             var tableClient = _storageAccount.CreateCloudTableClient();
-            tableClient.RetryPolicy = policies.ForAzureStorageClient();
+            tableClient.RetryPolicy = new NoRetry();
             return tableClient;
         }
 
         CloudQueueClient QueueClient()
         {
-            var policies = new Azure.RetryPolicies(Observer);
             var queueClient = _storageAccount.CreateCloudQueueClient();
-            queueClient.RetryPolicy = policies.ForAzureStorageClient();
+            queueClient.RetryPolicy = new NoRetry();
             queueClient.ServerTimeout = TimeSpan.FromSeconds(300);
             return queueClient;
         }
