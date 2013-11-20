@@ -1038,16 +1038,10 @@ namespace Lokad.Cloud.Storage.Azure
         /// </summary>
         private static void VerifyContentHash(CloudBlockBlob blob, Stream stream, string containerName, string blobName)
         {
-            var expectedHash = blob.Metadata[MetadataMD5Key];
-            if (string.IsNullOrEmpty(expectedHash))
+            string expectedHash;
+            if (blob.Metadata != null && blob.Metadata.TryGetValue(MetadataMD5Key, out expectedHash) && !string.IsNullOrEmpty(expectedHash) && expectedHash != ComputeContentHash(stream))
             {
-                return;
-            }
-
-            if (expectedHash != ComputeContentHash(stream))
-            {
-                throw new DataCorruptionException(
-                    string.Format("MD5 mismatch on blob retrieval {0}/{1}.", containerName, blobName));
+                throw new DataCorruptionException(string.Format("MD5 mismatch on blob retrieval {0}/{1}.", containerName, blobName));
             }
         }
 
