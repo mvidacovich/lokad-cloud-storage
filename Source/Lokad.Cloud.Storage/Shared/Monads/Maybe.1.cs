@@ -175,6 +175,14 @@ namespace Lokad.Cloud.Storage
         }
 
         /// <summary>
+        /// Binds a function to this <see cref="Maybe{T}"/> instance.
+        /// </summary>
+        public Maybe<TTarget> Bind<TTarget>(Func<T, Maybe<TTarget>> bind)
+        {
+            return _hasValue ? bind(_value) : Maybe<TTarget>.Empty;
+        }
+
+        /// <summary>
         /// Determines whether the specified <see cref="Maybe{T}"/> is equal to the current <see cref="Maybe{T}"/>.
         /// </summary>
         /// <param name="maybe">The <see cref="Maybe{T}"/> to compare with.</param>
