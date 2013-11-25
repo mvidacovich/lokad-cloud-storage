@@ -289,6 +289,79 @@ namespace Lokad.Cloud.Storage.Azure
             }
         }
 
+        public Maybe<Stream> GetBlobStream(string containerName, string blobName, out string etag)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            var container = _blobStorage.GetContainerReference(containerName);
+            var blob = container.GetBlockBlobReference(blobName);
+
+            var stream = new MemoryStream();
+            etag = null;
+
+            // if no such container, return empty
+            try
+            {
+                Retry.Do(_policies.TransientServerErrorBackOff(), CancellationToken.None, () =>
+                {
+                    stream.Seek(0, SeekOrigin.Begin);
+                    blob.DownloadToStream(stream);
+                    VerifyContentHash(blob, stream, containerName, blobName);
+                });
+
+                etag = blob.Properties.ETag;
+            }
+            catch (StorageException ex)
+            {
+                if (IsNotFoundException(ex))
+                {
+                    return Maybe<Stream>.Empty;
+                }
+
+                throw;
+            }
+
+            NotifySucceeded(StorageOperationType.BlobGet, stopwatch);
+            stream.Seek(0, SeekOrigin.Begin);
+            return new Maybe<Stream>(stream);
+        }
+
+        public Maybe<Stream> GetBlobOffsetStream(string containerName, string blobName, long offsetBytes, long lengthBytes, out string etag)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            var container = _blobStorage.GetContainerReference(containerName);
+            var blob = container.GetBlockBlobReference(blobName);
+
+            var stream = new MemoryStream();
+            etag = null;
+
+            // if no such container, return empty
+            try
+            {
+                Retry.Do(_policies.TransientServerErrorBackOff(), CancellationToken.None, () =>
+                {
+                    stream.Seek(0, SeekOrigin.Begin);
+                    blob.DownloadRangeToStream(stream, offsetBytes, lengthBytes);
+                });
+
+                etag = blob.Properties.ETag;
+            }
+            catch (StorageException ex)
+            {
+                if (IsNotFoundException(ex))
+                {
+                    return Maybe<Stream>.Empty;
+                }
+
+                throw;
+            }
+
+            NotifySucceeded(StorageOperationType.BlobGet, stopwatch);
+            stream.Seek(0, SeekOrigin.Begin);
+            return new Maybe<Stream>(stream);
+        }
+
         public Task<BlobWithETag<object>> GetBlobAsync(string containerName, string blobName, Type type, CancellationToken cancellationToken, IDataSerializer serializer = null)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -341,6 +414,49 @@ namespace Lokad.Cloud.Storage.Azure
                             completionSource.TrySetException(exception);
                         }
                     },
+                () => completionSource.TrySetCanceled());
+
+            return completionSource.Task;
+        }
+
+        public Task<BlobWithETag<Stream>> GetBlobStreamAsync(string containerName, string blobName, CancellationToken cancellationToken)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var completionSource = new TaskCompletionSource<BlobWithETag<Stream>>();
+
+            var container = _blobStorage.GetContainerReference(containerName);
+            var blob = container.GetBlockBlobReference(blobName);
+
+            var stream = new MemoryStream();
+            Retry.Task(_policies.TransientServerErrorBackOff(), cancellationToken,
+                () =>
+                {
+                    stream.Seek(0, SeekOrigin.Begin);
+                    return Task.Factory.FromAsync(blob.BeginDownloadToStream, blob.EndDownloadToStream, stream, null)
+                        .Then(() => VerifyContentHash(blob, stream, containerName, blobName));
+                },
+                () =>
+                {
+                    stream.Seek(0, SeekOrigin.Begin);
+                    NotifySucceeded(StorageOperationType.BlobGet, stopwatch);
+                    completionSource.TrySetResult(new BlobWithETag<Stream>
+                    {
+                        ETag = blob.Properties.ETag,
+                        Blob = stream
+                    });
+                },
+                exception =>
+                {
+                    if (IsNotFoundException(exception))
+                    {
+                        completionSource.TrySetResult(null);
+                    }
+                    else
+                    {
+                        NotifyFailed(StorageOperationType.BlobGet, exception);
+                        completionSource.TrySetException(exception);
+                    }
+                },
                 () => completionSource.TrySetCanceled());
 
             return completionSource.Task;
@@ -464,7 +580,7 @@ namespace Lokad.Cloud.Storage.Azure
             {
                 // call fails because blob has not been modified (usual case)
                 if (ex.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotModified ||
-                    // HACK: BUG in StorageClient 1.0 
+                    // HACK: BUG in StorageClient 1.0
                     // see http://social.msdn.microsoft.com/Forums/en-US/windowsazure/thread/4817cafa-12d8-4979-b6a7-7bda053e6b21
                     ex.Message == @"The condition specified using HTTP conditional header(s) is not met.")
                 {
@@ -474,6 +590,56 @@ namespace Lokad.Cloud.Storage.Azure
                 if (IsNotFoundException(ex))
                 {
                     return Maybe<T>.Empty;
+                }
+
+                throw;
+            }
+        }
+
+        public Maybe<Stream> GetBlobStreamIfModified(string containerName, string blobName, string oldEtag, out string newEtag)
+        {
+            // 'oldEtag' is null, then behavior always match simple 'GetBlobStream'.
+            if (null == oldEtag)
+            {
+                return GetBlobStream(containerName, blobName, out newEtag);
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+
+            newEtag = null;
+
+            var container = _blobStorage.GetContainerReference(containerName);
+            var blob = container.GetBlockBlobReference(blobName);
+
+            try
+            {
+                var stream = new MemoryStream();
+                Retry.Do(_policies.TransientServerErrorBackOff(), CancellationToken.None, () =>
+                {
+                    stream.Seek(0, SeekOrigin.Begin);
+                    blob.DownloadToStream(stream, accessCondition: AccessCondition.GenerateIfNoneMatchCondition(oldEtag));
+                    VerifyContentHash(blob, stream, containerName, blobName);
+                });
+
+                newEtag = blob.Properties.ETag;
+                NotifySucceeded(StorageOperationType.BlobGetIfModified, stopwatch);
+                stream.Seek(0, SeekOrigin.Begin);
+                return new Maybe<Stream>(stream);
+            }
+            catch (StorageException ex)
+            {
+                // call fails because blob has not been modified (usual case)
+                if (ex.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotModified ||
+                    // HACK: BUG in StorageClient 1.0
+                    // see http://social.msdn.microsoft.com/Forums/en-US/windowsazure/thread/4817cafa-12d8-4979-b6a7-7bda053e6b21
+                    ex.Message == @"The condition specified using HTTP conditional header(s) is not met.")
+                {
+                    return Maybe<Stream>.Empty;
+                }
+
+                if (IsNotFoundException(ex))
+                {
+                    return Maybe<Stream>.Empty;
                 }
 
                 throw;
