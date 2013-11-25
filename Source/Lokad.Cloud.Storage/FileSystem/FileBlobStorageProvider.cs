@@ -453,6 +453,7 @@ namespace Lokad.Cloud.Storage.FileSystem
                             }
 
                             etag = WriteToStream(epStream, stream);
+                            epStream.Flush();
                         }
 
                         return true;
@@ -478,6 +479,7 @@ namespace Lokad.Cloud.Storage.FileSystem
                 using (var epStream = new MetadataPrefixStream(fileStream))
                 {
                     etag = WriteToStream(epStream, stream);
+                    epStream.Flush();
                 }
 
                 return true;
@@ -840,7 +842,7 @@ namespace Lokad.Cloud.Storage.FileSystem
             stream.Seek(0, SeekOrigin.Begin);
             stream.Write(result, 0, result.Length);
             stream.SetLength(result.Length);
-            stream.Position = 0;
+            stream.Seek(0, SeekOrigin.Begin);
             return stream.WriteNewETag();
         }
 
@@ -857,7 +859,7 @@ namespace Lokad.Cloud.Storage.FileSystem
             stream.Seek(0, SeekOrigin.Begin);
             stream.Write(result, 0, result.Length);
             stream.SetLength(result.Length);
-            stream.Position = 0;
+            stream.Seek(0, SeekOrigin.Begin);
             return stream.WriteNewETag();
         }
     }

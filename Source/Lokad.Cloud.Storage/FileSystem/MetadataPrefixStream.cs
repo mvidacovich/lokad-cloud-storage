@@ -29,7 +29,7 @@ namespace Lokad.Cloud.Storage.FileSystem
             var guid = Guid.NewGuid();
             var oldPosition = _inner.Position;
             _inner.Position = ETagOffset;
-            _inner.Write(Guid.NewGuid().ToByteArray(), 0, ETagLength);
+            _inner.Write(guid.ToByteArray(), 0, ETagLength);
             _inner.Position = oldPosition;
             return guid.ToString("N");
         }

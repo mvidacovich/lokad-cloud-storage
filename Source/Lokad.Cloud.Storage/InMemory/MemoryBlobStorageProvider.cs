@@ -182,7 +182,7 @@ namespace Lokad.Cloud.Storage.InMemory
 
                 etag = Containers[containerName].BlobsEtag[blobName];
                 var stream = Containers[containerName].GetBlob(blobName);
-                stream.Position = 0;
+                stream.Position = offsetBytes;
                 var returnStream = new MemoryStream();
                 byte[] buffer = new byte[8192];
                 int bytesRead = 1;
@@ -345,7 +345,47 @@ namespace Lokad.Cloud.Storage.InMemory
 
         public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, out string etag)
         {
-            throw new NotImplementedException();
+            var memoryStream = stream as MemoryStream;
+            if (memoryStream == null)
+            {
+                memoryStream = new MemoryStream();
+                stream.CopyTo(memoryStream);
+            }
+            memoryStream.Position = 0;
+
+            lock (_syncRoot)
+            {
+                etag = null;
+                if (Containers.ContainsKey(containerName))
+                {
+                    if (Containers[containerName].BlobNames.Contains(blobName))
+                    {
+                        if (!overwrite || expectedEtag != null && expectedEtag != Containers[containerName].BlobsEtag[blobName])
+                        {
+                            return false;
+                        }
+
+                        Containers[containerName].SetBlob(blobName, memoryStream);
+                        etag = Containers[containerName].BlobsEtag[blobName];
+                        return true;
+                    }
+
+                    Containers[containerName].AddBlob(blobName, memoryStream);
+                    etag = Containers[containerName].BlobsEtag[blobName];
+                    return true;
+                }
+
+                if (!BlobStorageExtensions.IsContainerNameValid(containerName))
+                {
+                    throw new NotSupportedException("the containerName is not compliant with azure constraints on container names");
+                }
+
+                Containers.Add(containerName, new MemoryContainer());
+
+                Containers[containerName].AddBlob(blobName, memoryStream);
+                etag = Containers[containerName].BlobsEtag[blobName];
+                return true;
+            }
         }
 
         public bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, string expectedEtag, out string etag, IDataSerializer serializer = null)

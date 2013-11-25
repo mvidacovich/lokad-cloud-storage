@@ -4,6 +4,7 @@
 #endregion
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -453,6 +454,56 @@ namespace Lokad.Cloud.Storage.Test.Blobs
             Assert.IsFalse(value2.HasValue);
 
             BlobStorage.DeleteContainerIfExist(privateContainerName);
+        }
+
+        [Test]
+        public void StreamWithOffsets()
+        {
+            int len = byte.MaxValue + 1;
+            var data = new byte[len];
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte) i;
+            }
+            var dataStream = new MemoryStream(data);
+
+            var privateContainerName = "test-" + Guid.NewGuid().ToString("N");
+            string etag;
+            BlobStorage.PutBlobStream(privateContainerName, "testa", dataStream, true, null, out etag);
+            Assert.AreEqual(etag, BlobStorage.GetBlobEtag(privateContainerName, "testa"));
+
+            string etag1;
+            var res1 = BlobStorage.GetBlobStream(privateContainerName, "testa", out etag1);
+            Assert.IsTrue(res1.HasValue);
+            Assert.AreEqual(etag, etag1);
+            var res1a = ((MemoryStream) res1).ToArray();
+            Assert.AreEqual(data.Length, res1a.Length);
+            for (int i = 0; i < res1a.Length; i++)
+            {
+                Assert.AreEqual(data[i], res1a[i]);
+            }
+
+            string etag2;
+            var res2 = BlobStorage.GetBlobOffsetStream(privateContainerName, "testa", 0, len/2, out etag2);
+            Assert.IsTrue(res2.HasValue);
+            Assert.AreEqual(etag, etag2);
+            var res2a = ((MemoryStream) res2).ToArray();
+            Assert.AreEqual(len/2, res2a.Length);
+            for (int i = 0; i < res2a.Length; i++)
+            {
+                Assert.AreEqual(data[i], res2a[i]);
+            }
+
+            string etag3;
+            var res3 = BlobStorage.GetBlobOffsetStream(privateContainerName, "testa", len/2, len - len/2, out etag3);
+            Assert.IsTrue(res3.HasValue);
+            Assert.AreEqual(etag, etag3);
+            var res3a = ((MemoryStream) res3).ToArray();
+            Assert.AreEqual(len - len/2, res3a.Length);
+            for (int i = 0; i < res3a.Length; i++)
+            {
+                Assert.AreEqual(data[i + len/2], res3a[i]);
+            }
         }
 
         [Test]
