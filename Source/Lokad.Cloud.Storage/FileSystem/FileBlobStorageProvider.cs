@@ -150,16 +150,24 @@ namespace Lokad.Cloud.Storage.FileSystem
         public Maybe<T> GetBlob<T>(string containerName, string blobName, IDataSerializer serializer = null)
         {
             string ignoredEtag;
-            return GetBlob<T>(containerName, blobName, out ignoredEtag, serializer);
+            return GetBlob(containerName, blobName, typeof(T), out ignoredEtag, serializer).Convert(o => o is T ? (T)o : Maybe<T>.Empty, Maybe<T>.Empty);
         }
 
         public Maybe<T> GetBlob<T>(string containerName, string blobName, out string etag, IDataSerializer serializer = null)
         {
-            return GetBlob(containerName, blobName, typeof(T), out etag, serializer)
-                .Convert(o => o is T ? (T)o : Maybe<T>.Empty, Maybe<T>.Empty);
+            return GetBlob(containerName, blobName, typeof (T), out etag, serializer).Convert(o => o is T ? (T) o : Maybe<T>.Empty, Maybe<T>.Empty);
         }
 
         public Maybe<object> GetBlob(string containerName, string blobName, Type type, out string etag, IDataSerializer serializer = null)
+        {
+            return GetBlobStream(containerName, blobName, out etag).Bind(stream =>
+            {
+                var deserialized = (serializer ?? _defaultSerializer).TryDeserialize(stream, type);
+                return deserialized.IsSuccess ? new Maybe<object>(deserialized.Value) : Maybe<object>.Empty;
+            });
+        }
+
+        public Maybe<Stream> GetBlobStream(string containerName, string blobName, out string etag)
         {
             var path = Path.Combine(_root, containerName, blobName);
             try
@@ -168,26 +176,79 @@ namespace Lokad.Cloud.Storage.FileSystem
                 if (!file.Exists)
                 {
                     etag = null;
-                    return Maybe<object>.Empty;
+                    return Maybe<Stream>.Empty;
                 }
 
                 using (var stream = file.OpenRead())
                 using (var epStream = new MetadataPrefixStream(stream))
                 {
                     etag = epStream.ReadETag();
-                    var deserialized = (serializer ?? _defaultSerializer).TryDeserialize(epStream, type);
-                    return deserialized.IsSuccess ? new Maybe<object>(deserialized.Value) : Maybe<object>.Empty;
+                    int length = (int)epStream.Length;
+                    epStream.Seek(0, SeekOrigin.Begin);
+                    var returnStream = new MemoryStream(length);
+                    byte[] buffer = new byte[8192];
+                    int bytesRead = 1;
+                    while (length > 0 && bytesRead > 0)
+                    {
+                        bytesRead = epStream.Read(buffer, 0, Math.Min(length, buffer.Length));
+                        returnStream.Write(buffer, 0, bytesRead);
+                        length -= bytesRead;
+                    }
+                    returnStream.Position = 0;
+                    return new Maybe<Stream>(returnStream);
                 }
             }
             catch (FileNotFoundException)
             {
                 etag = null;
-                return Maybe<object>.Empty;
+                return Maybe<Stream>.Empty;
             }
             catch (DirectoryNotFoundException)
             {
                 etag = null;
-                return Maybe<object>.Empty;
+                return Maybe<Stream>.Empty;
+            }
+        }
+
+        public Maybe<Stream> GetBlobOffsetStream(string containerName, string blobName, long offsetBytes, long lengthBytes, out string etag)
+        {
+            var path = Path.Combine(_root, containerName, blobName);
+            try
+            {
+                var file = new FileInfo(path);
+                if (!file.Exists)
+                {
+                    etag = null;
+                    return Maybe<Stream>.Empty;
+                }
+
+                using (var stream = file.OpenRead())
+                using (var epStream = new MetadataPrefixStream(stream))
+                {
+                    etag = epStream.ReadETag();
+                    var returnStream = new MemoryStream();
+                    epStream.Seek(offsetBytes, SeekOrigin.Begin);
+                    byte[] buffer = new byte[8192];
+                    int bytesRead = 1;
+                    while (lengthBytes > 0 && bytesRead > 0)
+                    {
+                        bytesRead = epStream.Read(buffer, 0, Math.Min((int)lengthBytes, buffer.Length));
+                        returnStream.Write(buffer, 0, bytesRead);
+                        lengthBytes -= bytesRead;
+                    }
+                    returnStream.Position = 0;
+                    return new Maybe<Stream>(returnStream);
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                etag = null;
+                return Maybe<Stream>.Empty;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                etag = null;
+                return Maybe<Stream>.Empty;
             }
         }
 
@@ -196,11 +257,23 @@ namespace Lokad.Cloud.Storage.FileSystem
             // TODO: Implement native Task properly using FileSystem async api
             return Task.Factory.StartNew(
                 () =>
-                    {
-                        string etag;
-                        var blob = GetBlob(containerName, blobName, type, out etag, serializer);
-                        return blob.Convert(o => new BlobWithETag<object> { Blob = o, ETag = etag }, () => default(BlobWithETag<object>));
-                    });
+                {
+                    string etag;
+                    var blob = GetBlob(containerName, blobName, type, out etag, serializer);
+                    return blob.Convert(o => new BlobWithETag<object> {Blob = o, ETag = etag}, () => default(BlobWithETag<object>));
+                }, cancellationToken);
+        }
+
+        public Task<BlobWithETag<Stream>> GetBlobStreamAsync(string containerName, string blobName, CancellationToken cancellationToken)
+        {
+            // TODO: Implement native Task properly using FileSystem async api
+            return Task.Factory.StartNew(
+                () =>
+                {
+                    string etag;
+                    var blob = GetBlobStream(containerName, blobName, out etag);
+                    return blob.Convert(o => new BlobWithETag<Stream> {Blob = o, ETag = etag}, () => default(BlobWithETag<Stream>));
+                }, cancellationToken);
         }
 
         public Maybe<XElement> GetBlobXml(string containerName, string blobName, out string etag, IDataSerializer serializer = null)
@@ -277,6 +350,19 @@ namespace Lokad.Cloud.Storage.FileSystem
             return GetBlob<T>(containerName, blobName, serializer);
         }
 
+        public Maybe<Stream> GetBlobStreamIfModified(string containerName, string blobName, string oldEtag, out string newEtag)
+        {
+            string currentEtag = GetBlobEtag(containerName, blobName);
+
+            if (currentEtag == oldEtag)
+            {
+                newEtag = null;
+                return Maybe<Stream>.Empty;
+            }
+
+            return GetBlobStream(containerName, blobName, out newEtag);
+        }
+
         public string GetBlobEtag(string containerName, string blobName)
         {
             var path = Path.Combine(_root, containerName, blobName);
@@ -336,6 +422,71 @@ namespace Lokad.Cloud.Storage.FileSystem
         public bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, out string etag, IDataSerializer serializer = null)
         {
             return PutBlob(containerName, blobName, item, type, overwrite, null, out etag, serializer);
+        }
+
+        public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, out string etag)
+        {
+            var path = Path.Combine(_root, containerName, blobName);
+            var folder = Path.GetDirectoryName(path);
+            if (folder != null && !Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+
+            var file = new FileInfo(path);
+            if (overwrite)
+            {
+                // retry in case it is currently locked by another operation
+                var optimisticPolicy = _policies.OptimisticConcurrency();
+                int retryCount = 0;
+                while (true)
+                {
+                    try
+                    {
+                        using (var fileStream = file.Open(FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+                        using (var epStream = new MetadataPrefixStream(fileStream))
+                        {
+                            if (!string.IsNullOrEmpty(expectedEtag) && epStream.ReadETag() != expectedEtag)
+                            {
+                                etag = null;
+                                return false;
+                            }
+
+                            etag = WriteToStream(epStream, stream);
+                        }
+
+                        return true;
+                    }
+                    catch (IOException exception)
+                    {
+                        TimeSpan retryInterval;
+                        if (!optimisticPolicy.ShouldRetry(retryCount++, 0, exception, out retryInterval, null))
+                        {
+                            throw;
+                        }
+
+                        // Retry
+                        Thread.Sleep(retryInterval);
+                    }
+                }
+            }
+
+            // no need to retry in the non-overwrite case, since being locked implies the file already exist anyway
+            try
+            {
+                using (var fileStream = file.Open(FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                using (var epStream = new MetadataPrefixStream(fileStream))
+                {
+                    etag = WriteToStream(epStream, stream);
+                }
+
+                return true;
+            }
+            catch (IOException)
+            {
+                etag = null;
+                return false;
+            }
         }
 
         public bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, string expectedEtag, out string etag, IDataSerializer serializer = null)
@@ -408,11 +559,23 @@ namespace Lokad.Cloud.Storage.FileSystem
             // TODO: Implement native Task properly using FileSystem async api
             return Task.Factory.StartNew(
                 () =>
-                    {
-                        string etag;
-                        PutBlob(containerName, blobName, item, type, overwrite, expectedEtag, out etag, serializer);
-                        return etag;
-                    });
+                {
+                    string etag;
+                    PutBlob(containerName, blobName, item, type, overwrite, expectedEtag, out etag, serializer);
+                    return etag;
+                }, cancellationToken);
+        }
+
+        public Task<string> PutBlobStreamAsync(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, CancellationToken cancellationToken)
+        {
+            // TODO: Implement native Task properly using FileSystem async api
+            return Task.Factory.StartNew(
+                () =>
+                {
+                    string etag;
+                    PutBlobStream(containerName, blobName, stream, overwrite, expectedEtag, out etag);
+                    return etag;
+                }, cancellationToken);
         }
 
         public Maybe<T> UpdateBlobIfExist<T>(string containerName, string blobName, Func<T, T> update, IDataSerializer serializer = null)
@@ -677,6 +840,24 @@ namespace Lokad.Cloud.Storage.FileSystem
             stream.Seek(0, SeekOrigin.Begin);
             stream.Write(result, 0, result.Length);
             stream.SetLength(result.Length);
+            stream.Position = 0;
+            return stream.WriteNewETag();
+        }
+
+        private string WriteToStream(MetadataPrefixStream stream, Stream item)
+        {
+            byte[] result;
+            using (var resultStream = new MemoryStream())
+            {
+                item.Position = 0;
+                item.CopyTo(resultStream);
+                result = resultStream.ToArray();
+            }
+
+            stream.Seek(0, SeekOrigin.Begin);
+            stream.Write(result, 0, result.Length);
+            stream.SetLength(result.Length);
+            stream.Position = 0;
             return stream.WriteNewETag();
         }
     }

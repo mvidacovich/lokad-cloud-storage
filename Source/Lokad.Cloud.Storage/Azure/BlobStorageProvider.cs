@@ -837,7 +837,6 @@ namespace Lokad.Cloud.Storage.Azure
             var blob = container.GetBlockBlobReference(blobName);
             ApplyContentHash(blob, stream);
 
-            BlobRequestOptions options;
             AccessCondition accessCondition;
             if (!overwrite) // no overwrite authorized, blob must NOT exists
             {
