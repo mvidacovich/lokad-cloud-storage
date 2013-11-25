@@ -229,13 +229,12 @@ namespace Lokad.Cloud.Storage.Azure
         public Maybe<T> GetBlob<T>(string containerName, string blobName, IDataSerializer serializer = null)
         {
             string ignoredEtag;
-            return GetBlob<T>(containerName, blobName, out ignoredEtag, serializer);
+            return GetBlob(containerName, blobName, typeof (T), out ignoredEtag, serializer).Convert(o => (T) o, Maybe<T>.Empty);
         }
 
         public Maybe<T> GetBlob<T>(string containerName, string blobName, out string etag, IDataSerializer serializer = null)
         {
-            return GetBlob(containerName, blobName, typeof(T), out etag, serializer)
-                .Convert(o => (T)o, Maybe<T>.Empty);
+            return GetBlob(containerName, blobName, typeof (T), out etag, serializer).Convert(o => (T) o, Maybe<T>.Empty);
         }
 
         public Maybe<object> GetBlob(string containerName, string blobName, Type type, out string etag, IDataSerializer serializer = null)
