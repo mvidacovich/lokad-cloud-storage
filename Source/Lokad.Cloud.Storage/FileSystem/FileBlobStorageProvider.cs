@@ -153,6 +153,18 @@ namespace Lokad.Cloud.Storage.FileSystem
             return GetBlob(containerName, blobName, typeof(T), out ignoredEtag, serializer).Convert(o => o is T ? (T)o : Maybe<T>.Empty, Maybe<T>.Empty);
         }
 
+        public Maybe<Stream> GetBlobStream(string containerName, string blobName)
+        {
+            string ignoredEtag;
+            return GetBlobStream(containerName, blobName, out ignoredEtag);
+        }
+
+        public Maybe<Stream> GetBlobOffsetStream(string containerName, string blobName, long offsetBytes, long lengthBytes)
+        {
+            string ignoredEtag;
+            return GetBlobOffsetStream(containerName, blobName, offsetBytes, lengthBytes, out ignoredEtag);
+        }
+
         public Maybe<T> GetBlob<T>(string containerName, string blobName, out string etag, IDataSerializer serializer = null)
         {
             return GetBlob(containerName, blobName, typeof (T), out etag, serializer).Convert(o => o is T ? (T) o : Maybe<T>.Empty, Maybe<T>.Empty);
@@ -402,15 +414,32 @@ namespace Lokad.Cloud.Storage.FileSystem
             PutBlob(containerName, blobName, item, typeof(T), true, null, out ignored, serializer);
         }
 
+        public void PutBlobStream(string containerName, string blobName, Stream stream)
+        {
+            string ignored;
+            PutBlobStream(containerName, blobName, stream, true, null, out ignored);
+        }
+
         public bool PutBlob<T>(string containerName, string blobName, T item, bool overwrite, IDataSerializer serializer = null)
         {
             string ignored;
             return PutBlob(containerName, blobName, item, typeof(T), overwrite, null, out ignored, serializer);
         }
 
+        public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite)
+        {
+            string ignored;
+            return PutBlobStream(containerName, blobName, stream, overwrite, null, out ignored);
+        }
+
         public bool PutBlob<T>(string containerName, string blobName, T item, bool overwrite, out string etag, IDataSerializer serializer = null)
         {
             return PutBlob(containerName, blobName, item, typeof(T), overwrite, null, out etag, serializer);
+        }
+
+        public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, out string etag)
+        {
+            return PutBlobStream(containerName, blobName, stream, overwrite, null, out etag);
         }
 
         public bool PutBlob<T>(string containerName, string blobName, T item, string expectedEtag, IDataSerializer serializer = null)
@@ -419,12 +448,18 @@ namespace Lokad.Cloud.Storage.FileSystem
             return PutBlob(containerName, blobName, item, typeof (T), true, expectedEtag, out ignored, serializer);
         }
 
+        public bool PutBlobStream(string containerName, string blobName, Stream stream, string expectedEtag)
+        {
+            string ignored;
+            return PutBlobStream(containerName, blobName, stream, true, expectedEtag, out ignored);
+        }
+
         public bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, out string etag, IDataSerializer serializer = null)
         {
             return PutBlob(containerName, blobName, item, type, overwrite, null, out etag, serializer);
         }
 
-        public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, out string etag)
+        bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, out string etag)
         {
             var path = Path.Combine(_root, containerName, blobName);
             var folder = Path.GetDirectoryName(path);
@@ -491,7 +526,7 @@ namespace Lokad.Cloud.Storage.FileSystem
             }
         }
 
-        public bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, string expectedEtag, out string etag, IDataSerializer serializer = null)
+        bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, string expectedEtag, out string etag, IDataSerializer serializer = null)
         {
             var path = Path.Combine(_root, containerName, blobName);
             var folder = Path.GetDirectoryName(path);

@@ -469,7 +469,7 @@ namespace Lokad.Cloud.Storage.Test.Blobs
 
             var privateContainerName = "test-" + Guid.NewGuid().ToString("N");
             string etag;
-            BlobStorage.PutBlobStream(privateContainerName, "testa", dataStream, true, null, out etag);
+            BlobStorage.PutBlobStream(privateContainerName, "testa", dataStream, true, out etag);
             Assert.AreEqual(etag, BlobStorage.GetBlobEtag(privateContainerName, "testa"));
 
             string etag1;

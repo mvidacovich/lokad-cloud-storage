@@ -232,6 +232,18 @@ namespace Lokad.Cloud.Storage.Azure
             return GetBlob(containerName, blobName, typeof (T), out ignoredEtag, serializer).Convert(o => (T) o, Maybe<T>.Empty);
         }
 
+        public Maybe<Stream> GetBlobStream(string containerName, string blobName)
+        {
+            string ignoredEtag;
+            return GetBlobStream(containerName, blobName, out ignoredEtag);
+        }
+
+        public Maybe<Stream> GetBlobOffsetStream(string containerName, string blobName, long offsetBytes, long lengthBytes)
+        {
+            string ignoredEtag;
+            return GetBlobOffsetStream(containerName, blobName, offsetBytes, lengthBytes, out ignoredEtag);
+        }
+
         public Maybe<T> GetBlob<T>(string containerName, string blobName, out string etag, IDataSerializer serializer = null)
         {
             return GetBlob(containerName, blobName, typeof (T), out etag, serializer).Convert(o => (T) o, Maybe<T>.Empty);
@@ -700,10 +712,22 @@ namespace Lokad.Cloud.Storage.Azure
             PutBlob(containerName, blobName, item, typeof(T), true, null, out ignored, serializer);
         }
 
+        public void PutBlobStream(string containerName, string blobName, Stream stream)
+        {
+            string ignored;
+            PutBlobStream(containerName, blobName, stream, true, null, out ignored);
+        }
+
         public bool PutBlob<T>(string containerName, string blobName, T item, bool overwrite, IDataSerializer serializer = null)
         {
             string ignored;
             return PutBlob(containerName, blobName, item, typeof(T), overwrite, null, out ignored, serializer);
+        }
+
+        public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite)
+        {
+            string ignored;
+            return PutBlobStream(containerName, blobName, stream, overwrite, null, out ignored);
         }
 
         public bool PutBlob<T>(string containerName, string blobName, T item, bool overwrite, out string etag, IDataSerializer serializer = null)
@@ -711,10 +735,21 @@ namespace Lokad.Cloud.Storage.Azure
             return PutBlob(containerName, blobName, item, typeof(T), overwrite, null, out etag, serializer);
         }
 
+        public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, out string etag)
+        {
+            return PutBlobStream(containerName, blobName, stream, overwrite, null, out etag);
+        }
+
         public bool PutBlob<T>(string containerName, string blobName, T item, string expectedEtag, IDataSerializer serializer = null)
         {
-            string outEtag;
-            return PutBlob(containerName, blobName, item, typeof (T), true, expectedEtag, out outEtag, serializer);
+            string ignored;
+            return PutBlob(containerName, blobName, item, typeof (T), true, expectedEtag, out ignored, serializer);
+        }
+
+        public bool PutBlobStream(string containerName, string blobName, Stream stream, string expectedEtag)
+        {
+            string ignored;
+            return PutBlobStream(containerName, blobName, stream, true, expectedEtag, out ignored);
         }
 
         public bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, out string outEtag, IDataSerializer serializer = null)
@@ -722,7 +757,7 @@ namespace Lokad.Cloud.Storage.Azure
             return PutBlob(containerName, blobName, item, type, overwrite, null, out outEtag, serializer);
         }
 
-        public bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, string expectedEtag, out string outEtag, IDataSerializer serializer = null)
+        bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, string expectedEtag, out string outEtag, IDataSerializer serializer = null)
         {
             using (var stream = new MemoryStream())
             {
@@ -732,7 +767,7 @@ namespace Lokad.Cloud.Storage.Azure
             }
         }
 
-        public bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, out string outEtag)
+        bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, out string outEtag)
         {
             var stopwatch = Stopwatch.StartNew();
             var container = _blobStorage.GetContainerReference(containerName);

@@ -74,6 +74,8 @@ namespace Lokad.Cloud.Storage
         /// has its property HasValue set to <c>false</c>.
         /// </returns>
         Maybe<T> GetBlob<T>(string containerName, string blobName, IDataSerializer serializer = null);
+        Maybe<Stream> GetBlobStream(string containerName, string blobName);
+        Maybe<Stream> GetBlobOffsetStream(string containerName, string blobName, long offsetBytes, long lengthBytes);
 
         /// <summary>Gets a blob.</summary>
         /// <typeparam name="T">Blob type.</typeparam>
@@ -87,6 +89,8 @@ namespace Lokad.Cloud.Storage
         /// has its property HasValue set to <c>false</c>.
         /// </returns>
         Maybe<T> GetBlob<T>(string containerName, string blobName, out string etag, IDataSerializer serializer = null);
+        Maybe<Stream> GetBlobStream(string containerName, string blobName, out string etag);
+        Maybe<Stream> GetBlobOffsetStream(string containerName, string blobName, long offsetBytes, long lengthBytes, out string etag);
 
         /// <summary>Gets a blob.</summary>
         /// <param name="containerName">Name of the container.</param>
@@ -104,17 +108,11 @@ namespace Lokad.Cloud.Storage
         /// In all other cases, you should use the generic overloads of the method.</remarks>
         Maybe<object> GetBlob(string containerName, string blobName, Type type, out string etag, IDataSerializer serializer = null);
 
-
-        Maybe<Stream> GetBlobStream(string containerName, string blobName, out string etag);
-
-        Maybe<Stream> GetBlobOffsetStream(string containerName, string blobName, long offsetBytes, long lengthBytes, out string etag);
-
         /// <summary>ASYNC: Gets a blob.</summary>
         /// <param name="containerName">Name of the container.</param>
         /// <param name="blobName">Name of the blob.</param>
         /// <param name="type">The type of the blob.</param>
         Task<BlobWithETag<object>> GetBlobAsync(string containerName, string blobName, Type type, CancellationToken cancellationToken, IDataSerializer serializer = null);
-
         Task<BlobWithETag<Stream>> GetBlobStreamAsync(string containerName, string blobName, CancellationToken cancellationToken);
 
         /// <summary>
@@ -156,7 +154,6 @@ namespace Lokad.Cloud.Storage
         /// then the returned object has its property HasValue set to <c>false</c>.
         /// </returns>
         Maybe<T> GetBlobIfModified<T>(string containerName, string blobName, string oldEtag, out string newEtag, IDataSerializer serializer = null);
-
         Maybe<Stream> GetBlobStreamIfModified(string containerName, string blobName, string oldEtag, out string newEtag);
 
         /// <summary>
@@ -172,12 +169,14 @@ namespace Lokad.Cloud.Storage
         /// <summary>Puts a blob (overwrite if the blob already exists).</summary>
         /// <remarks>Creates the container if it does not exist beforehand.</remarks>
         void PutBlob<T>(string containerName, string blobName, T item, IDataSerializer serializer = null);
+        void PutBlobStream(string containerName, string blobName, Stream stream);
 
         /// <summary>Puts a blob and optionally overwrite.</summary>
         /// <remarks>Creates the container if it does not exist beforehand.</remarks>
         /// <returns><c>true</c> if the blob has been put and <c>false</c> if the blob already
         /// exists but could not be overwritten.</returns>
         bool PutBlob<T>(string containerName, string blobName, T item, bool overwrite, IDataSerializer serializer = null);
+        bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite);
 
         /// <summary>Puts a blob and optionally overwrite.</summary>
         /// <param name="containerName">Name of the container.</param>
@@ -191,6 +190,7 @@ namespace Lokad.Cloud.Storage
         /// <returns><c>true</c> if the blob has been put and <c>false</c> if the blob already
         /// exists but could not be overwritten.</returns>
         bool PutBlob<T>(string containerName, string blobName, T item, bool overwrite, out string etag, IDataSerializer serializer = null);
+        bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, out string etag);
 
         /// <summary>Puts a blob only if etag given in argument is matching blob's etag in blobStorage.</summary>
         /// <param name="containerName">Name of the container.</param>
@@ -201,6 +201,7 @@ namespace Lokad.Cloud.Storage
         /// <returns><c>true</c> if the blob has been put and <c>false</c> if the blob already
         /// exists but version were not matching.</returns>
         bool PutBlob<T>(string containerName, string blobName, T item, string expectedEtag, IDataSerializer serializer = null);
+        bool PutBlobStream(string containerName, string blobName, Stream stream, string expectedEtag);
 
         /// <summary>Puts a blob and optionally overwrite.</summary>
         /// <param name="containerName">Name of the container.</param>
@@ -219,8 +220,6 @@ namespace Lokad.Cloud.Storage
         /// In all other cases, you should use the generic overloads of the method.</remarks>
         bool PutBlob(string containerName, string blobName, object item, Type type, bool overwrite, out string etag, IDataSerializer serializer = null);
 
-        bool PutBlobStream(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, out string etag);
-
         /// <summary>ASYNC: Puts a blob and optionally overwrite.</summary>
         /// <param name="containerName">Name of the container.</param>
         /// <param name="blobName">Name of the blob.</param>
@@ -232,7 +231,6 @@ namespace Lokad.Cloud.Storage
         /// the blob is written, or <c>null</c> if no blob is written.</param>
         /// <remarks>Creates the container if it does not exist beforehand.</remarks>
         Task<string> PutBlobAsync(string containerName, string blobName, object item, Type type, bool overwrite, string expectedEtag, CancellationToken cancellationToken, IDataSerializer serializer = null);
-
         Task<string> PutBlobStreamAsync(string containerName, string blobName, Stream stream, bool overwrite, string expectedEtag, CancellationToken cancellationToken);
 
         /// <summary>

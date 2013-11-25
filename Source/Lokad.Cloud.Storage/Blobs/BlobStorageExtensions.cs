@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -149,6 +150,23 @@ namespace Lokad.Cloud.Storage
             return provider.GetBlob<T>(location.ContainerName, location.Path, out etag, serializer);
         }
 
+        public static Maybe<Stream> GetBlobStream(this IBlobStorageProvider provider, IBlobLocationAndType<Stream> location)
+        {
+            string etag;
+            return provider.GetBlobStream(location.ContainerName, location.Path, out etag);
+        }
+
+        public static Maybe<Stream> GetBlobStream(this IBlobStorageProvider provider, IBlobLocation location)
+        {
+            string etag;
+            return provider.GetBlobStream(location.ContainerName, location.Path, out etag);
+        }
+
+        public static Maybe<Stream> GetBlobStream(this IBlobStorageProvider provider, IBlobLocationAndType<Stream> location, out string etag)
+        {
+            return provider.GetBlobStream(location.ContainerName, location.Path, out etag);
+        }
+
         public static string GetBlobEtag(this IBlobStorageProvider provider, IBlobLocation location)
         {
             return provider.GetBlobEtag(location.ContainerName, location.Path);
@@ -158,26 +176,47 @@ namespace Lokad.Cloud.Storage
         {
             provider.PutBlob(location.ContainerName, location.Path, item, serializer);
         }
+        public static void PutBlobStream(this IBlobStorageProvider provider, IBlobLocationAndType<Stream> location, Stream stream)
+        {
+            provider.PutBlobStream(location.ContainerName, location.Path, stream);
+        }
 
         public static void PutBlob<T>(this IBlobStorageProvider provider, IBlobLocation location, T item, IDataSerializer serializer = null)
         {
             provider.PutBlob(location.ContainerName, location.Path, item, serializer);
+        }
+        public static void PutBlobStream(this IBlobStorageProvider provider, IBlobLocation location, Stream stream)
+        {
+            provider.PutBlobStream(location.ContainerName, location.Path, stream);
         }
 
         public static bool PutBlob<T>(this IBlobStorageProvider provider, IBlobLocationAndType<T> location, T item, bool overwrite, IDataSerializer serializer = null)
         {
             return provider.PutBlob(location.ContainerName, location.Path, item, overwrite, serializer);
         }
+        public static bool PutBlobStream(this IBlobStorageProvider provider, IBlobLocationAndType<Stream> location, Stream stream, bool overwrite)
+        {
+            return provider.PutBlobStream(location.ContainerName, location.Path, stream, overwrite);
+        }
 
         public static bool PutBlob<T>(this IBlobStorageProvider provider, IBlobLocation location, T item, bool overwrite, IDataSerializer serializer = null)
         {
             return provider.PutBlob(location.ContainerName, location.Path, item, overwrite, serializer);
+        }
+        public static bool PutBlobStream(this IBlobStorageProvider provider, IBlobLocation location, Stream stream, bool overwrite)
+        {
+            return provider.PutBlobStream(location.ContainerName, location.Path, stream, overwrite);
         }
 
         /// <summary>Push the blob only if etag is matching the etag of the blob in BlobStorage</summary>
         public static bool PutBlob<T>(this IBlobStorageProvider provider, IBlobLocationAndType<T> location, T item, string etag, IDataSerializer serializer = null)
         {
             return provider.PutBlob(location.ContainerName, location.Path, item, etag, serializer);
+        }
+        /// <summary>Push the blob only if etag is matching the etag of the blob in BlobStorage</summary>
+        public static bool PutBlobStream(this IBlobStorageProvider provider, IBlobLocationAndType<Stream> location, Stream stream, string etag)
+        {
+            return provider.PutBlobStream(location.ContainerName, location.Path, stream, etag);
         }
 
         /// <summary>
