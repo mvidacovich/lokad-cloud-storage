@@ -504,6 +504,18 @@ namespace Lokad.Cloud.Storage.Test.Blobs
             {
                 Assert.AreEqual(data[i + len/2], res3a[i]);
             }
+
+            // Test too long length > actual blob length
+            string etag4;
+            var res4 = BlobStorage.GetBlobOffsetStream(privateContainerName, "testa", len / 2, 3*len, out etag4);
+            Assert.IsTrue(res4.HasValue);
+            Assert.AreEqual(etag, etag4);
+            var res4a = ((MemoryStream)res4).ToArray();
+            Assert.AreEqual(len - len / 2, res4a.Length);
+            for (int i = 0; i < res4a.Length; i++)
+            {
+                Assert.AreEqual(data[i + len / 2], res4a[i]);
+            }
         }
 
         [Test]
