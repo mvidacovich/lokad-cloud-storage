@@ -93,8 +93,11 @@ namespace Lokad.Cloud.Storage.Azure
             }
             catch(StorageException ex)
             {
-                if(ex.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ContainerAlreadyExists
-                    || ex.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists)
+                StorageExtendedErrorInformation extended;
+                if (ex.RequestInformation != null
+                    && (extended = ex.RequestInformation.ExtendedErrorInformation) != null
+                    && (extended.ErrorCode == StorageErrorCodeStrings.ContainerAlreadyExists
+                        || extended.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists))
                 {
                     return false;
                 }
@@ -113,8 +116,11 @@ namespace Lokad.Cloud.Storage.Azure
             }
             catch (StorageException ex)
             {
-                if (ex.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ContainerNotFound
-                    || ex.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ResourceNotFound)
+                StorageExtendedErrorInformation extended;
+                if (ex.RequestInformation != null
+                    && (extended = ex.RequestInformation.ExtendedErrorInformation) != null
+                    && (extended.ErrorCode == StorageErrorCodeStrings.ContainerNotFound
+                        || extended.ErrorCode == StorageErrorCodeStrings.ResourceNotFound))
                 {
                     return false;
                 }
@@ -169,7 +175,10 @@ namespace Lokad.Cloud.Storage.Azure
                 catch (StorageException ex)
                 {
                     // if the container does not exist, empty enumeration
-                    if (ex.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ContainerNotFound)
+                    StorageExtendedErrorInformation extended;
+                    if (ex.RequestInformation != null
+                        && (extended = ex.RequestInformation.ExtendedErrorInformation) != null
+                        && extended.ErrorCode == StorageErrorCodeStrings.ContainerNotFound)
                     {
                         yield break;
                     }
@@ -803,7 +812,9 @@ namespace Lokad.Cloud.Storage.Azure
             catch (StorageException ex)
             {
                 // if the container does not exist, it gets created
-                if (ex.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.ContainerNotFound)
+
+                var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
+                if (extended != null && extended.ErrorCode == BlobErrorCodeStrings.ContainerNotFound)
                 {
                     // caution: the container might have been freshly deleted
                     // (multiple retries are needed in such a situation)
@@ -828,7 +839,7 @@ namespace Lokad.Cloud.Storage.Azure
                     return true;
                 }
 
-                if (ex.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists && !overwrite)
+                if (extended != null && extended.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists && !overwrite)
                 {
                     // See http://social.msdn.microsoft.com/Forums/en-US/windowsazure/thread/fff78a35-3242-4186-8aee-90d27fbfbfd4
                     // and http://social.msdn.microsoft.com/Forums/en-US/windowsazure/thread/86b9f184-c329-4c30-928f-2991f31e904b/
@@ -1364,18 +1375,22 @@ namespace Lokad.Cloud.Storage.Azure
             }
 
             var sce = exception as StorageException;
+            if (sce == null || sce.RequestInformation == null)
+            {
+                return false;
+            }
 
-            return sce != null &&
-                (
-                    sce.RequestInformation.HttpStatusCode == (int)HttpStatusCode.NotFound &&
-                    sce.RequestInformation.HttpStatusMessage.Contains("The specified blob does not exist.") == true
-                )
-                ||
-                (
-                    sce.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ContainerNotFound ||
-                    sce.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobNotFound ||
-                    sce.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ResourceNotFound
-                );
+            var info = sce.RequestInformation;
+            if (info.HttpStatusCode == (int)HttpStatusCode.NotFound && info.HttpStatusMessage.Contains("The specified blob does not exist."))
+            {
+                return true;
+            }
+
+            var extended = info.ExtendedErrorInformation;
+            return extended != null && (
+                sce.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ContainerNotFound ||
+                sce.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobNotFound ||
+                sce.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ResourceNotFound);
         }
 
         private void NotifySucceeded(StorageOperationType operationType, Stopwatch stopwatch)
