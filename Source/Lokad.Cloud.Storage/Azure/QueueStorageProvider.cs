@@ -74,6 +74,11 @@ namespace Lokad.Cloud.Storage.Azure
             _inProcessMessages = new Dictionary<object, InProcessMessage>(20, new IdentityComparer());
         }
 
+        public CloudQueueClient AzureClient
+        {
+            get { return _queueStorage; }
+        }
+
         /// <remarks></remarks>
         public IEnumerable<string> List(string prefix)
         {

@@ -20,7 +20,7 @@ namespace Lokad.Cloud.Storage
             _hasValue = hasValue;
         }
 
-        internal Maybe(T value)
+        public Maybe(T value)
             : this(value, true)
         {
             // ReSharper disable CompareNonConstrainedGenericWithNull

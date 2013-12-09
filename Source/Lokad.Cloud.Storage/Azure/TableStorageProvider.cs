@@ -51,6 +51,11 @@ namespace Lokad.Cloud.Storage.Azure
             _observer = observer;
         }
 
+        public CloudTableClient AzureClient
+        {
+            get { return _tableStorage; }
+        }
+
         /// <remarks></remarks>
         public bool CreateTable(string tableName)
         {

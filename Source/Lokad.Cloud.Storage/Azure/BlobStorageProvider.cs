@@ -54,6 +54,11 @@ namespace Lokad.Cloud.Storage.Azure
             _observer = observer;
         }
 
+        public CloudBlobClient AzureClient
+        {
+            get { return _blobStorage; }
+        }
+
         public IEnumerable<string> ListContainers(string containerNamePrefix = null)
         {
             var enumerator = String.IsNullOrEmpty(containerNamePrefix)
