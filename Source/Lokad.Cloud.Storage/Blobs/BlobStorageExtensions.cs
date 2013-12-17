@@ -150,21 +150,24 @@ namespace Lokad.Cloud.Storage
             return provider.GetBlob<T>(location.ContainerName, location.Path, out etag, serializer);
         }
 
-        public static Maybe<Stream> GetBlobStream(this IBlobStorageProvider provider, IBlobLocationAndType<Stream> location)
-        {
-            string etag;
-            return provider.GetBlobStream(location.ContainerName, location.Path, out etag);
-        }
-
         public static Maybe<Stream> GetBlobStream(this IBlobStorageProvider provider, IBlobLocation location)
         {
-            string etag;
+            return provider.GetBlobStream(location.ContainerName, location.Path);
+        }
+
+        public static Maybe<Stream> GetBlobStream(this IBlobStorageProvider provider, IBlobLocation location, out string etag)
+        {
             return provider.GetBlobStream(location.ContainerName, location.Path, out etag);
         }
 
-        public static Maybe<Stream> GetBlobStream(this IBlobStorageProvider provider, IBlobLocationAndType<Stream> location, out string etag)
+        public static Maybe<Stream> GetBlobOffsetStream(this IBlobStorageProvider provider, IBlobLocation location, long offsetBytes, long lengthBytes)
         {
-            return provider.GetBlobStream(location.ContainerName, location.Path, out etag);
+            return provider.GetBlobOffsetStream(location.ContainerName, location.Path, offsetBytes, lengthBytes);
+        }
+
+        public static Maybe<Stream> GetBlobOffsetStream(this IBlobStorageProvider provider, IBlobLocation location, long offsetBytes, long lengthBytes, out string etag)
+        {
+            return provider.GetBlobOffsetStream(location.ContainerName, location.Path, offsetBytes, lengthBytes, out etag);
         }
 
         public static string GetBlobEtag(this IBlobStorageProvider provider, IBlobLocation location)
