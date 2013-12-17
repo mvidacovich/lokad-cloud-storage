@@ -812,7 +812,6 @@ namespace Lokad.Cloud.Storage.Azure
             catch (StorageException ex)
             {
                 // if the container does not exist, it gets created
-
                 var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
                 if (extended != null && extended.ErrorCode == BlobErrorCodeStrings.ContainerNotFound)
                 {
