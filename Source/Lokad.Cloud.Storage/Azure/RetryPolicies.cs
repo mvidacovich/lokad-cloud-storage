@@ -534,11 +534,11 @@ namespace Lokad.Cloud.Storage.Azure
             }
 
             // Upload MD5 mismatch
-            var clientException = exception as StorageException;
-            if (clientException != null
-                && clientException.RequestInformation.ExtendedErrorInformation != null
-                && clientException.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.InvalidHeaderValue
-                && clientException.RequestInformation.ExtendedErrorInformation.AdditionalDetails["HeaderName"] == "Content-MD5")
+            var storageException = exception as StorageException;
+            var extended = storageException != null && storageException.RequestInformation != null ? storageException.RequestInformation.ExtendedErrorInformation : null;
+            if (extended != null
+                && extended.ErrorCode == StorageErrorCodeStrings.InvalidHeaderValue
+                && extended.AdditionalDetails["HeaderName"] == "Content-MD5")
             {
                 // network transport corruption (automatic), try again
                 return true;

@@ -317,8 +317,8 @@ namespace Lokad.Cloud.Storage.Azure
                                             // Fails to behave properly in multi-threaded situations
                                             catch (StorageException cex)
                                             {
-                                                if (cex.RequestInformation.ExtendedErrorInformation == null
-                                                    || cex.RequestInformation.ExtendedErrorInformation.ErrorCode != TableErrorCodeStrings.TableAlreadyExists)
+                                                var extended = cex.RequestInformation != null ? cex.RequestInformation.ExtendedErrorInformation : null;
+                                                if (extended == null || extended.ErrorCode != TableErrorCodeStrings.TableAlreadyExists)
                                                 {
                                                     throw;
                                                 }
@@ -449,7 +449,8 @@ namespace Lokad.Cloud.Storage.Azure
                                         // Fails to behave properly in multi-threaded situations
                                         catch (StorageException cex)
                                         {
-                                            if (cex.RequestInformation.ExtendedErrorInformation.ErrorCode != TableErrorCodeStrings.TableAlreadyExists)
+                                            var extended = cex.RequestInformation != null ? cex.RequestInformation.ExtendedErrorInformation : null;
+                                            if (extended == null || extended.ErrorCode != TableErrorCodeStrings.TableAlreadyExists)
                                             {
                                                 throw;
                                             }
@@ -560,7 +561,8 @@ namespace Lokad.Cloud.Storage.Azure
                                 // Fails to behave properly in multi-threaded situations
                                 catch (StorageException cex)
                                 {
-                                    if (cex.RequestInformation.ExtendedErrorInformation.ErrorCode != TableErrorCodeStrings.TableAlreadyExists)
+                                    var extended = cex.RequestInformation != null ? cex.RequestInformation.ExtendedErrorInformation : null;
+                                    if (extended == null || extended.ErrorCode != TableErrorCodeStrings.TableAlreadyExists)
                                     {
                                         throw;
                                     }

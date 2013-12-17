@@ -93,11 +93,8 @@ namespace Lokad.Cloud.Storage.Azure
             }
             catch(StorageException ex)
             {
-                StorageExtendedErrorInformation extended;
-                if (ex.RequestInformation != null
-                    && (extended = ex.RequestInformation.ExtendedErrorInformation) != null
-                    && (extended.ErrorCode == StorageErrorCodeStrings.ContainerAlreadyExists
-                        || extended.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists))
+                var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
+                if (extended != null && (extended.ErrorCode == StorageErrorCodeStrings.ContainerAlreadyExists || extended.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists))
                 {
                     return false;
                 }
@@ -116,11 +113,8 @@ namespace Lokad.Cloud.Storage.Azure
             }
             catch (StorageException ex)
             {
-                StorageExtendedErrorInformation extended;
-                if (ex.RequestInformation != null
-                    && (extended = ex.RequestInformation.ExtendedErrorInformation) != null
-                    && (extended.ErrorCode == StorageErrorCodeStrings.ContainerNotFound
-                        || extended.ErrorCode == StorageErrorCodeStrings.ResourceNotFound))
+                var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
+                if (extended != null && (extended.ErrorCode == StorageErrorCodeStrings.ContainerNotFound || extended.ErrorCode == StorageErrorCodeStrings.ResourceNotFound))
                 {
                     return false;
                 }
@@ -147,7 +141,7 @@ namespace Lokad.Cloud.Storage.Azure
             IEnumerator<IListBlobItem> enumerator;
             if (string.IsNullOrEmpty(blobNamePrefix))
             {
-                enumerator = container.ListBlobs(useFlatBlobListing:true).GetEnumerator();
+                enumerator = container.ListBlobs(useFlatBlobListing: true).GetEnumerator();
             }
             else
             {
@@ -155,7 +149,7 @@ namespace Lokad.Cloud.Storage.Azure
                 var directory = container.GetDirectoryReference(blobNamePrefix);
 
                 // HACK: [vermorel] very ugly override, but otherwise an "/" separator gets forcibly added
-                typeof(CloudBlobDirectory).GetField("prefix", BindingFlags.Instance | BindingFlags.NonPublic)
+                typeof (CloudBlobDirectory).GetField("prefix", BindingFlags.Instance | BindingFlags.NonPublic)
                     .SetValue(directory, blobNamePrefix);
 
                 enumerator = directory.ListBlobs(useFlatBlobListing: true).GetEnumerator();
@@ -175,13 +169,12 @@ namespace Lokad.Cloud.Storage.Azure
                 catch (StorageException ex)
                 {
                     // if the container does not exist, empty enumeration
-                    StorageExtendedErrorInformation extended;
-                    if (ex.RequestInformation != null
-                        && (extended = ex.RequestInformation.ExtendedErrorInformation) != null
-                        && extended.ErrorCode == StorageErrorCodeStrings.ContainerNotFound)
+                    var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
+                    if (extended != null && extended.ErrorCode == StorageErrorCodeStrings.ContainerNotFound)
                     {
                         yield break;
                     }
+
                     throw;
                 }
 
@@ -925,7 +918,8 @@ namespace Lokad.Cloud.Storage.Azure
                     var storageClientException = exception as StorageException;
                     if (storageClientException != null)
                     {
-                        if (storageClientException.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ConditionNotMet)
+                        var extended = storageClientException.RequestInformation != null ? storageClientException.RequestInformation.ExtendedErrorInformation : null;
+                        if (extended != null && extended.ErrorCode == StorageErrorCodeStrings.ConditionNotMet)
                         {
                             // "return false"; success because it behaved as excpected - the expected etag was not matching so it was not overwritten
                             completionSource.TrySetResult(null);
@@ -933,8 +927,7 @@ namespace Lokad.Cloud.Storage.Azure
                             return;
                         }
 
-                        if (storageClientException.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists
-                            && !overwrite)
+                        if (extended != null && extended.ErrorCode == BlobErrorCodeStrings.BlobAlreadyExists && !overwrite)
                         {
                             // See http://social.msdn.microsoft.com/Forums/en-US/windowsazure/thread/fff78a35-3242-4186-8aee-90d27fbfbfd4
                             // and http://social.msdn.microsoft.com/Forums/en-US/windowsazure/thread/86b9f184-c329-4c30-928f-2991f31e904b/
@@ -946,7 +939,7 @@ namespace Lokad.Cloud.Storage.Azure
                         }
 
                         // if the container does not exist, it gets created
-                        if (storageClientException.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.ContainerNotFound)
+                        if (extended != null && extended.ErrorCode == BlobErrorCodeStrings.ContainerNotFound)
                         {
                             Retry.Task(_policies.SlowInstantiation(), cancellationToken, () =>
                             {
@@ -972,8 +965,8 @@ namespace Lokad.Cloud.Storage.Azure
                                     }
 
                                     var sce = e as StorageException;
-                                    if (sce != null && sce.RequestInformation.ExtendedErrorInformation.ErrorCode
-                                        == StorageErrorCodeStrings.ConditionNotMet)
+                                    var extended2 = sce != null && sce.RequestInformation != null ? sce.RequestInformation.ExtendedErrorInformation : null;
+                                    if (extended2 != null && extended2.ErrorCode == StorageErrorCodeStrings.ConditionNotMet)
                                     {
                                         // "return false"; success because it behaved as excpected - the expected etag was not matching so it was not overwritten
                                         completionSource.TrySetResult(null);
@@ -1033,7 +1026,8 @@ namespace Lokad.Cloud.Storage.Azure
             }
             catch (StorageException ex)
             {
-                if (ex.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ConditionNotMet)
+                var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
+                if (extended != null && extended.ErrorCode == StorageErrorCodeStrings.ConditionNotMet)
                 {
                     return Maybe<string>.Empty;
                 }
@@ -1387,9 +1381,9 @@ namespace Lokad.Cloud.Storage.Azure
 
             var extended = info.ExtendedErrorInformation;
             return extended != null && (
-                sce.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ContainerNotFound ||
-                sce.RequestInformation.ExtendedErrorInformation.ErrorCode == BlobErrorCodeStrings.BlobNotFound ||
-                sce.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ResourceNotFound);
+                extended.ErrorCode == StorageErrorCodeStrings.ContainerNotFound ||
+                extended.ErrorCode == BlobErrorCodeStrings.BlobNotFound ||
+                extended.ErrorCode == StorageErrorCodeStrings.ResourceNotFound);
         }
 
         private void NotifySucceeded(StorageOperationType operationType, Stopwatch stopwatch)

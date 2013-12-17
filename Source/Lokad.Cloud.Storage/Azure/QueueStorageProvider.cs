@@ -1113,18 +1113,8 @@ namespace Lokad.Cloud.Storage.Azure
                     return false;
                 }
 
-                var info = ex.RequestInformation.ExtendedErrorInformation;
-                if (info == null)
-                {
-                    throw;
-                }
-
-                if (info.ErrorCode == QueueErrorCodeStrings.PopReceiptMismatch)
-                {
-                    return false;
-                }
-
-                if (info.ErrorCode == QueueErrorCodeStrings.QueueNotFound)
+                var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
+                if (extended != null && (extended.ErrorCode == QueueErrorCodeStrings.PopReceiptMismatch || extended.ErrorCode == QueueErrorCodeStrings.QueueNotFound))
                 {
                     return false;
                 }
@@ -1323,8 +1313,8 @@ namespace Lokad.Cloud.Storage.Azure
             }
             catch (StorageException ex)
             {
-                if (ex.RequestInformation.ExtendedErrorInformation.ErrorCode == StorageErrorCodeStrings.ResourceNotFound
-                    || ex.RequestInformation.ExtendedErrorInformation.ErrorCode == QueueErrorCodeStrings.QueueNotFound)
+                var extended = ex.RequestInformation != null ? ex.RequestInformation.ExtendedErrorInformation : null;
+                if (extended != null && (extended.ErrorCode == StorageErrorCodeStrings.ResourceNotFound || extended.ErrorCode == QueueErrorCodeStrings.QueueNotFound))
                 {
                     return Maybe<TimeSpan>.Empty;
                 }
