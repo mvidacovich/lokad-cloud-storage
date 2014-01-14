@@ -3,3 +3,5 @@ _ReSharper*
 *.suo
 Thumbs.db
 .hg
+*.ncrunch*
+packages/*
